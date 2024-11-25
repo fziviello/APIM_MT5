@@ -134,19 +134,26 @@ def create_order(symbol, order_type, volume, price=None, sl=None, tp=None, magic
     logging.info(f"Ordine creato con successo: {result}")
     return {"success": True, "order": result.order}
 
-def update_order(ticket, stop_loss=None, take_profit=None):
-
-    orders = mt5.orders_get(ticket=ticket)
+def update_order(ticket, price=None, stop_loss=None, take_profit=None):
+    orders = mt5.orders_get()
     if not orders:
         message = f"Nessun ordine pendente trovato: {mt5.last_error()}"
         logging.error(message)
         return {"success": False, "message": message}
 
+    order = next((o for o in orders if o.ticket == ticket), None)
+    if not order:
+        message = f"Ordine con ticket {ticket} non trovato."
+        logging.error(message)
+        return {"success": False, "message": message}
+
     request = {
-        "action": mt5.TRADE_ACTION_SLTP,
+        "action": mt5.TRADE_ACTION_MODIFY,
+        "symbol": order.symbol,
         "order": ticket,
-        "sl": stop_loss,
-        "tp": take_profit,
+        "price": price if price is not None else order.price_open,
+        "sl": stop_loss if stop_loss is not None else order.sl,
+        "tp": take_profit if take_profit is not None else order.tp,
     }
 
     result = mt5.order_send(request)
@@ -156,11 +163,11 @@ def update_order(ticket, stop_loss=None, take_profit=None):
         return {"success": False, "message": message}
 
     if result.retcode != mt5.TRADE_RETCODE_DONE:
-        message = f"Errore nell'aggiornamento dell'ordine. Retcode: {result.retcode}, Commento: {result.comment}"
-        logging.error(message)
+        message = f"Errore nell'aggiornamento dell'ordine. Retcode: {result.retcode}, Details: {result.comment}"
+        logging.error(f"Errore nell'aggiornamento dell'ordine. Retcode: {result.retcode}, Details: {result.comment}")
         return {"success": False, "message": message}
 
-    logging.info(f"Ordine con ticket {ticket} aggiornato con successo.")
+    logging.info(f"Ordine con ticket {ticket} aggiornato con successo")
     return {"success": True, "message": "Ordine aggiornato con successo"}
 
 def delete_order(ticket):      
@@ -227,10 +234,11 @@ def update_order_api():
         
         data = request.get_json()
         order_ticket = data['ticket']
-        take_profit = data.get('take_profit')
-        stop_loss = data.get('stop_loss')
+        price = data.get('price') or None
+        take_profit = data.get('take_profit') or None
+        stop_loss = data.get('stop_loss') or None
         
-        update_result = update_order(order_ticket, stop_loss, take_profit)
+        update_result = update_order(order_ticket, price, stop_loss, take_profit)
         if update_result["success"]:
             return jsonify({"status": "success", "message": update_result["message"]}), 200
         else:
