@@ -11,7 +11,7 @@ This script provides an HTTP API server using Flask to interact with the MetaTra
 
 ## Use Venv
 
-- `python -m venv .venv`
+- `py -m venv .venv`
 - `.venv\Scripts\activate`
 
 ## Requirements
