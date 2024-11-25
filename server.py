@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import MetaTrader5 as mt5
 import socket
 import logging
+from datetime import datetime
 
 DESCRIPTION = "Ordine caricato da Server API"
 
@@ -24,6 +25,35 @@ if account_info:
     logging.info(f"Account info:{account_info}")
 else:
     logging.info(f"Errore account:{mt5.last_error()}")
+
+def get_hystory_order(from_date, to_date=None):
+
+    from_date = datetime.strptime(from_date, "%d-%m-%Y")
+    if to_date is None:
+        to_date = datetime.now()
+
+    print(from_date)
+    print(to_date)
+    orders = mt5.history_orders_get(from_date, to_date)
+
+    if orders is None or len(orders) == 0:
+        message = f"Nessuna cronologia ordini trovata: {mt5.last_error()}"
+        logging.error(message)
+        return {"success": True, "message": message, "orders": []}
+
+    order_keys = [
+        "ticket", "time_setup", "time_setup_msc", "time_done", "time_done_msc", "time_expiration", "type",
+        "type_time", "type_filling", "state", "magic", "position_id", "position_by_id", "reason",
+        "volume_initial", "volume_current", "price_open", "sl", "tp", "price_current", "price_stoplimit",
+        "symbol", "comment", "external_id"
+    ]
+
+    orders_readable = [
+        {key: value for key, value in zip(order_keys, order)}
+        for order in orders
+    ]
+
+    return {"success": True, "orders": orders_readable}
 
 def get_placed_order():
     orders = mt5.orders_get()
@@ -279,6 +309,26 @@ def get_placed_order_api():
             return jsonify({"status": "error", "message":  get_placed_order_result["message"]}), 400
     except Exception as e:
         logging.exception("Errore nella ricezione della lista degli ordini pendenti")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/order/hystory', methods=['POST'])
+def get_hystory_order_api():
+    try:
+        if not mt5.initialize():
+            return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
+         
+        data = request.get_json()
+        from_date = data.get('from_date')
+        to_date = data.get('to_date') or None
+
+        get_hystory_order_result = get_hystory_order(from_date, to_date)
+       
+        if get_hystory_order_result["success"]:
+            return jsonify({"status": "success", "orders": get_hystory_order_result["orders"]}), 200
+        else:
+            return jsonify({"status": "error", "message":  get_hystory_order_result["message"]}), 400
+    except Exception as e:
+        logging.exception("Errore nella ricezione della cronologia degli ordini")
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':
