@@ -25,7 +25,7 @@ if account_info:
 else:
     logging.info(f"Errore account:{mt5.last_error()}")
 
-def get_order():
+def get_placed_order():
     orders = mt5.orders_get()
 
     if orders is None or len(orders) == 0:
@@ -257,20 +257,20 @@ def delete_order_api():
         logging.exception("Errore nella cancellazione dell'ordine")
         return jsonify({"status": "error", "message": str(e)}), 400
 
-@app.route('/order', methods=['GET'])
-def get_order_api():
+@app.route('/order/placed', methods=['GET'])
+def get_placed_order_api():
     try:
         if not mt5.initialize():
             return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
          
-        get_order_result = get_order()
+        get_placed_order_result = get_placed_order()
        
-        if get_order_result["success"]:
-            return jsonify({"status": "success", "orders": get_order_result["orders"]}), 200
+        if get_placed_order_result["success"]:
+            return jsonify({"status": "success", "orders": get_placed_order_result["orders"]}), 200
         else:
-            return jsonify({"status": "error", "message":  get_order_result["message"]}), 400
+            return jsonify({"status": "error", "message":  get_placed_order_result["message"]}), 400
     except Exception as e:
-        logging.exception("Errore nella ricezione della lista degli ordini")
+        logging.exception("Errore nella ricezione della lista degli ordini pendenti")
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':
