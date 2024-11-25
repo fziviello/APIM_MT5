@@ -29,11 +29,23 @@ def get_order():
     orders = mt5.orders_get()
 
     if orders is None or len(orders) == 0:
-        message = f"Non esistono ordini: {mt5.last_error()}"
+        message = f"Non esistono ordini pendenti: {mt5.last_error()}"
         logging.error(message)
         return {"success": True, "message": message, "orders": []}
 
-    return {"success": True, "orders": orders}
+    order_keys = [
+        "ticket", "time_setup", "time_setup_msc", "time_done", "time_done_msc", "time_expiration", "type",
+        "type_time", "type_filling", "state", "magic", "position_id", "position_by_id", "reason",
+        "volume_initial", "volume_current", "price_open", "sl", "tp", "price_current", "price_stoplimit",
+        "symbol", "comment", "external_id"
+    ]
+
+    orders_readable = [
+        {key: value for key, value in zip(order_keys, order)}
+        for order in orders
+    ]
+
+    return {"success": True, "orders": orders_readable}
 
 def create_order(symbol, order_type, volume, price=None, sl=None, tp=None, magic=0):
 
@@ -248,6 +260,9 @@ def delete_order_api():
 @app.route('/order', methods=['GET'])
 def get_order_api():
     try:
+        if not mt5.initialize():
+            return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
+         
         get_order_result = get_order()
        
         if get_order_result["success"]:
