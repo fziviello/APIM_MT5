@@ -26,6 +26,7 @@ if account_info:
 else:
     logging.info(f"Errore account:{mt5.last_error()}")
 
+
 def get_orders():
     orders = mt5.positions_get()
 
@@ -48,14 +49,38 @@ def get_orders():
 
     return {"success": True, "orders": orders_readable}
 
-def get_hystory_orders(from_date, to_date=None):
+def get_history_deals_orders(from_date, to_date=None):
 
     from_date = datetime.strptime(from_date, "%d-%m-%Y")
     if to_date is None:
         to_date = datetime.now()
 
-    print(from_date)
-    print(to_date)
+    dealsOrders = mt5.history_deals_get(from_date, to_date)
+
+    if dealsOrders is None or len(dealsOrders) == 0:
+        message = f"Nessuna cronologia ordini trovata: {mt5.last_error()}"
+        logging.error(message)
+        return {"success": True, "message": message, "orders": []}
+
+    order_keys = [
+        "ticket", "order", "time", "time_msc", "type",
+        "entry", "magic", "position_id", "reason", "volume", "price", 
+        "commission", "swap", "profit", "fee", "symbol", "comment", "external_id"
+    ]
+
+    orders_readable = [
+        {key: value for key, value in zip(order_keys, order)}
+        for order in dealsOrders
+    ]
+
+    return {"success": True, "orders": orders_readable}
+
+def get_history_orders(from_date, to_date=None):
+
+    from_date = datetime.strptime(from_date, "%d-%m-%Y")
+    if to_date is None:
+        to_date = datetime.now()
+
     orders = mt5.history_orders_get(from_date, to_date)
 
     if orders is None or len(orders) == 0:
@@ -349,8 +374,8 @@ def get_placed_orders_api():
         logging.exception("Errore nella ricezione della lista degli ordini pendenti")
         return jsonify({"status": "error", "message": str(e)}), 400
 
-@app.route('/order/hystory', methods=['POST'])
-def get_hystory_orders_api():
+@app.route('/order/history', methods=['POST'])
+def get_history_orders_api():
     try:
         if not mt5.initialize():
             return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
@@ -359,12 +384,32 @@ def get_hystory_orders_api():
         from_date = data.get('from_date')
         to_date = data.get('to_date') or None
 
-        get_hystory_order_result = get_hystory_orders(from_date, to_date)
+        get_history_order_result = get_history_orders(from_date, to_date)
        
-        if get_hystory_order_result["success"]:
-            return jsonify({"status": "success", "orders": get_hystory_order_result["orders"]}), 200
+        if get_history_order_result["success"]:
+            return jsonify({"status": "success", "orders": get_history_order_result["orders"]}), 200
         else:
-            return jsonify({"status": "error", "message":  get_hystory_order_result["message"]}), 400
+            return jsonify({"status": "error", "message":  get_history_order_result["message"]}), 400
+    except Exception as e:
+        logging.exception("Errore nella ricezione della cronologia degli ordini")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/order/historyDeals', methods=['POST'])
+def get_history_deals_orders_api():
+    try:
+        if not mt5.initialize():
+            return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
+         
+        data = request.get_json()
+        from_date = data.get('from_date')
+        to_date = data.get('to_date') or None
+
+        get_history_order_result = get_history_deals_orders(from_date, to_date)
+       
+        if get_history_order_result["success"]:
+            return jsonify({"status": "success", "orders": get_history_order_result["orders"]}), 200
+        else:
+            return jsonify({"status": "error", "message":  get_history_order_result["message"]}), 400
     except Exception as e:
         logging.exception("Errore nella ricezione della cronologia degli ordini")
         return jsonify({"status": "error", "message": str(e)}), 400
