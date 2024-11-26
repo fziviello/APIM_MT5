@@ -15,114 +15,203 @@ logging.basicConfig(
 
 app = Flask(__name__)
 
-if not mt5.initialize():
-    logging.error("Errore nell'inizializzazione di MetaTrader5")
-    raise RuntimeError("Errore nell'inizializzazione di MetaTrader5")
-logging.info("MetaTrader5 inizializzato con successo")
+def get_account_info():
+    account_info = mt5.account_info()
+    if account_info:
+        account_info_dict = {
+            "login": account_info.login,
+            "trade_mode": account_info.trade_mode,
+            "leverage": account_info.leverage,
+            "limit_orders": account_info.limit_orders,
+            "margin_so_mode": account_info.margin_so_mode,
+            "trade_allowed": account_info.trade_allowed,
+            "trade_expert": account_info.trade_expert,
+            "margin_mode": account_info.margin_mode,
+            "currency_digits": account_info.currency_digits,
+            "fifo_close": account_info.fifo_close,
+            "balance": account_info.balance,
+            "credit": account_info.credit,
+            "profit": account_info.profit,
+            "equity": account_info.equity,
+            "margin": account_info.margin,
+            "margin_free": account_info.margin_free,
+            "margin_level": account_info.margin_level,
+            "margin_so_call": account_info.margin_so_call,
+            "margin_so_so": account_info.margin_so_so,
+            "margin_initial": account_info.margin_initial,
+            "margin_maintenance": account_info.margin_maintenance,
+            "assets": account_info.assets,
+            "commission_blocked": account_info.commission_blocked,
+            "name": account_info.name,
+            "server": account_info.server,
+            "currency": account_info.currency,
+            "company": account_info.company
+        }
 
-account_info = mt5.account_info()
-if account_info:
-    logging.info(f"Account info:{account_info}")
-else:
-    logging.info(f"Errore account:{mt5.last_error()}")
-
+        logging.info(f"Account info: {account_info_dict}")
+        return {"success": True, "info": account_info_dict}
+    else:
+        error_message = f"Errore account: {mt5.last_error()}"
+        logging.error(error_message)
+        return {"success": False, "message": error_message}
 
 def get_orders():
     orders = mt5.positions_get()
 
     if orders is None or len(orders) == 0:
-        message = f"Non esistono ordini pendenti: {mt5.last_error()}"
+        message = "Non esistono ordini pendenti" if orders is None else f"Errore: {mt5.last_error()}"
         logging.error(message)
         return {"success": True, "message": message, "orders": []}
 
-    order_keys = [
-        "ticket", "time_setup", "time_setup_msc", "time_done", "time_done_msc", "time_expiration", "type",
-        "type_time", "type_filling", "state", "magic", "position_id", "position_by_id", "reason",
-        "volume_initial", "volume_current", "price_open", "sl", "tp", "price_current", "price_stoplimit",
-        "symbol", "comment", "external_id"
-    ]
-
-    orders_readable = [
-        {key: value for key, value in zip(order_keys, order)}
-        for order in orders
-    ]
+    orders_readable = []
+    for order in orders:
+        orders_readable.append({
+            "ticket": order.ticket,
+            "time_setup": order.time,
+            "symbol": order.symbol,
+            "volume": order.volume,
+            "price_open": order.price_open,
+            "sl": order.sl,
+            "tp": order.tp,
+            "price_current": order.price_current,
+            "profit": order.profit,
+            "comment": order.comment
+        })
 
     return {"success": True, "orders": orders_readable}
 
 def get_history_deals_orders(from_date, to_date=None):
+    try:
+        from_date = datetime.strptime(from_date, "%d-%m-%Y")
+        if to_date is None:
+            to_date = datetime.now()
 
-    from_date = datetime.strptime(from_date, "%d-%m-%Y")
-    if to_date is None:
-        to_date = datetime.now()
+        deals_orders = mt5.history_deals_get(from_date, to_date)
 
-    dealsOrders = mt5.history_deals_get(from_date, to_date)
+        if deals_orders is None or len(deals_orders) == 0:
+            message = "Nessuna cronologia ordini trovata" if deals_orders is None else f"Errore: {mt5.last_error()}"
+            logging.error(message)
+            return {"success": True, "message": message, "orders": []}
 
-    if dealsOrders is None or len(dealsOrders) == 0:
-        message = f"Nessuna cronologia ordini trovata: {mt5.last_error()}"
-        logging.error(message)
-        return {"success": True, "message": message, "orders": []}
+        orders_readable = []
+        for deal in deals_orders:
+            orders_readable.append({
+                "ticket": deal.ticket,
+                "order": deal.order,
+                "time": deal.time,
+                "time_msc": deal.time_msc,
+                "type": deal.type,
+                "entry": deal.entry,
+                "magic": deal.magic,
+                "position_id": deal.position_id,
+                "reason": deal.reason,
+                "volume": deal.volume,
+                "price": deal.price,
+                "commission": deal.commission,
+                "swap": deal.swap,
+                "profit": deal.profit,
+                "fee": deal.fee,
+                "symbol": deal.symbol,
+                "comment": deal.comment,
+                "external_id": deal.external_id,
+            })
 
-    order_keys = [
-        "ticket", "order", "time", "time_msc", "type",
-        "entry", "magic", "position_id", "reason", "volume", "price", 
-        "commission", "swap", "profit", "fee", "symbol", "comment", "external_id"
-    ]
+        return {"success": True, "orders": orders_readable}
 
-    orders_readable = [
-        {key: value for key, value in zip(order_keys, order)}
-        for order in dealsOrders
-    ]
-
-    return {"success": True, "orders": orders_readable}
+    except Exception as e:
+        logging.error(f"Errore nella funzione get_history_deals_orders: {e}")
+        return {"success": False, "message": str(e)}
 
 def get_history_orders(from_date, to_date=None):
+    try:
+        from_date = datetime.strptime(from_date, "%d-%m-%Y")
+        if to_date is None:
+            to_date = datetime.now()
 
-    from_date = datetime.strptime(from_date, "%d-%m-%Y")
-    if to_date is None:
-        to_date = datetime.now()
+        orders = mt5.history_orders_get(from_date, to_date)
 
-    orders = mt5.history_orders_get(from_date, to_date)
+        if orders is None or len(orders) == 0:
+            message = "Nessuna cronologia ordini trovata" if orders is None else f"Errore: {mt5.last_error()}"
+            logging.error(message)
+            return {"success": True, "message": message, "orders": []}
 
-    if orders is None or len(orders) == 0:
-        message = f"Nessuna cronologia ordini trovata: {mt5.last_error()}"
-        logging.error(message)
-        return {"success": True, "message": message, "orders": []}
+        orders_readable = []
+        for order in orders:
+            orders_readable.append({
+                "ticket": order.ticket,
+                "time_setup": order.time_setup,
+                "time_setup_msc": order.time_setup_msc,
+                "time_done": order.time_done,
+                "time_done_msc": order.time_done_msc,
+                "time_expiration": order.time_expiration,
+                "type": order.type,
+                "type_time": order.type_time,
+                "type_filling": order.type_filling,
+                "state": order.state,
+                "magic": order.magic,
+                "position_id": order.position_id,
+                "reason": order.reason,
+                "volume_initial": order.volume_initial,
+                "volume_current": order.volume_current,
+                "price_open": order.price_open,
+                "sl": order.sl,
+                "tp": order.tp,
+                "price_current": order.price_current,
+                "price_stoplimit": order.price_stoplimit,
+                "symbol": order.symbol,
+                "comment": order.comment,
+                "external_id": order.external_id
+            })
 
-    order_keys = [
-        "ticket", "time_setup", "time_setup_msc", "time_done", "time_done_msc", "time_expiration", "type",
-        "type_time", "type_filling", "state", "magic", "position_id", "position_by_id", "reason",
-        "volume_initial", "volume_current", "price_open", "sl", "tp", "price_current", "price_stoplimit",
-        "symbol", "comment", "external_id"
-    ]
+        return {"success": True, "orders": orders_readable}
 
-    orders_readable = [
-        {key: value for key, value in zip(order_keys, order)}
-        for order in orders
-    ]
-
-    return {"success": True, "orders": orders_readable}
+    except Exception as e:
+        logging.error(f"Errore nella funzione get_history_orders: {e}")
+        return {"success": False, "message": str(e)}
 
 def get_placed_orders():
-    orders = mt5.orders_get()
+    try:
+        orders = mt5.orders_get()
 
-    if orders is None or len(orders) == 0:
-        message = f"Non esistono ordini pendenti: {mt5.last_error()}"
-        logging.error(message)
-        return {"success": True, "message": message, "orders": []}
+        if orders is None or len(orders) == 0:
+            message = f"Non esistono ordini pendenti: {mt5.last_error()}"
+            logging.error(message)
+            return {"success": True, "message": message, "orders": []}
 
-    order_keys = [
-        "ticket", "time_setup", "time_setup_msc", "time_done", "time_done_msc", "time_expiration", "type",
-        "type_time", "type_filling", "state", "magic", "position_id", "position_by_id", "reason",
-        "volume_initial", "volume_current", "price_open", "sl", "tp", "price_current", "price_stoplimit",
-        "symbol", "comment", "external_id"
-    ]
+        orders_readable = []
+        for order in orders:
+            orders_readable.append({
+                "ticket": order.ticket,
+                "time_setup": order.time_setup,
+                "time_setup_msc": order.time_setup_msc,
+                "time_done": order.time_done,
+                "time_done_msc": order.time_done_msc,
+                "time_expiration": order.time_expiration,
+                "type": order.type,
+                "type_time": order.type_time,
+                "type_filling": order.type_filling,
+                "state": order.state,
+                "magic": order.magic,
+                "position_id": order.position_id,
+                "position_by_id": order.position_by_id,
+                "reason": order.reason,
+                "volume_initial": order.volume_initial,
+                "volume_current": order.volume_current,
+                "price_open": order.price_open,
+                "sl": order.sl,
+                "tp": order.tp,
+                "price_current": order.price_current,
+                "price_stoplimit": order.price_stoplimit,
+                "symbol": order.symbol,
+                "comment": order.comment,
+                "external_id": order.external_id
+            })
 
-    orders_readable = [
-        {key: value for key, value in zip(order_keys, order)}
-        for order in orders
-    ]
+        return {"success": True, "orders": orders_readable}
 
-    return {"success": True, "orders": orders_readable}
+    except Exception as e:
+        logging.error(f"Errore nella funzione get_placed_orders: {e}")
+        return {"success": False, "message": str(e)}
 
 def create_order(symbol, order_type, volume, price=None, sl=None, tp=None, magic=0):
 
@@ -413,6 +502,23 @@ def get_history_deals_orders_api():
     except Exception as e:
         logging.exception("Errore nella ricezione della cronologia degli ordini")
         return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/account/info', methods=['GET'])
+def get_account_info_api():
+    try:
+        if not mt5.initialize():
+            return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
+
+        getInfo_result = get_account_info()
+       
+        if getInfo_result["success"]:
+            return jsonify({"status": "success", "info": getInfo_result["info"]}), 200
+        else:
+            return jsonify({"status": "error", "message":  getInfo_result["message"]}), 400
+    except Exception as e:
+        logging.exception("Errore nella ricezione delle informazioni dell' account")
+        return jsonify({"status": "error", "message": str(e)}), 400
+
 
 if __name__ == '__main__':
     hostname = socket.gethostname()
