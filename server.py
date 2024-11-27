@@ -452,7 +452,7 @@ def get_placed_orders_api():
     try:
         if not mt5.initialize():
             return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
-         
+                
         get_placed_order_result = get_placed_orders()
        
         if get_placed_order_result["success"]:
