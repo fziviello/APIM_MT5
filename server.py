@@ -149,7 +149,7 @@ class StatusOrders(Resource):
             logging.exception("Errore nella ricezione della lista degli ordini {status}")
             return {"status": "error", "message": str(e)}
 
-@api.route('/order/history')
+@api.route('/orders/history')
 class HistoryOrders(Resource):
     @api.expect(history_model)
     def post(self):
@@ -173,7 +173,7 @@ class HistoryOrders(Resource):
             logging.exception("Errore nella ricezione della cronologia degli ordini")
             return {"status": "error", "message": str(e)}
 
-@api.route('/order/historyDeals')
+@api.route('/orders/historyDeals')
 class HistoryDealsOrders(Resource):
     @api.expect(history_model)
     def post(self):
@@ -215,9 +215,9 @@ class AccountInfo(Resource):
             logging.exception("Errore nella ricezione delle informazioni dell' account")
             return {"status": "error", "message": str(e)}
 
-api.add_resource(CreateOrder, '/order')
-api.add_resource(UpdateOrder, '/order')
-api.add_resource(DeleteOrder, '/order')
+api.add_resource(CreateOrder, '/orders')
+api.add_resource(UpdateOrder, '/orders')
+api.add_resource(DeleteOrder, '/orders')
 api.add_resource(StatusOrders, '/orders')
 
 api.add_resource(AccountInfo, '/account')
