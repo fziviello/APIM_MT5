@@ -1,3 +1,4 @@
+from flask import jsonify
 import MetaTrader5 as mt5
 import logging
 from datetime import datetime
@@ -38,11 +39,11 @@ def get_account_info():
         }
 
         logging.info(f"Account info: {account_info_dict}")
-        return {"success": True, "info": account_info_dict}
+        return jsonify({"success": True, "info": account_info_dict}), 200
     else:
         error_message = f"Errore account: {mt5.last_error()}"
         logging.error(error_message)
-        return {"success": False, "message": error_message}
+        return jsonify({"success": False, "message": error_message}), 500
 
 def get_orders():
     orders = mt5.positions_get()
@@ -50,7 +51,7 @@ def get_orders():
     if orders is None or len(orders) == 0:
         message = "Non esistono ordini pendenti" if orders is None else f"Errore: {mt5.last_error()}"
         logging.error(message)
-        return {"success": True, "message": message, "orders": []}
+        return jsonify({"success": True, "message": message, "orders": []}), 200
 
     orders_readable = []
     for order in orders:
@@ -67,7 +68,7 @@ def get_orders():
             "comment": order.comment
         })
 
-    return {"success": True, "orders": orders_readable}
+    return jsonify({"success": True, "orders": orders_readable}), 200
 
 def get_history_deals_orders(from_date, to_date=None):
     try:
@@ -80,7 +81,7 @@ def get_history_deals_orders(from_date, to_date=None):
         if deals_orders is None or len(deals_orders) == 0:
             message = "Nessuna cronologia ordini trovata" if deals_orders is None else f"Errore: {mt5.last_error()}"
             logging.error(message)
-            return {"success": True, "message": message, "orders": []}
+            return jsonify({"success": True, "message": message, "orders": []}), 200
 
         orders_readable = []
         for deal in deals_orders:
@@ -105,11 +106,11 @@ def get_history_deals_orders(from_date, to_date=None):
                 "external_id": deal.external_id,
             })
 
-        return {"success": True, "orders": orders_readable}
+        return jsonify({"success": True, "orders": orders_readable}), 200
 
     except Exception as e:
         logging.error(f"Errore nella funzione get_history_deals_orders: {e}")
-        return {"success": False, "message": str(e)}
+        return jsonify({"success": False, "message": str(e)}), 500
 
 def get_history_orders(from_date, to_date=None):
     try:
@@ -122,7 +123,7 @@ def get_history_orders(from_date, to_date=None):
         if orders is None or len(orders) == 0:
             message = "Nessuna cronologia ordini trovata" if orders is None else f"Errore: {mt5.last_error()}"
             logging.error(message)
-            return {"success": True, "message": message, "orders": []}
+            return jsonify({"success": True, "message": message, "orders": []}), 200
 
         orders_readable = []
         for order in orders:
@@ -152,11 +153,11 @@ def get_history_orders(from_date, to_date=None):
                 "external_id": order.external_id
             })
 
-        return {"success": True, "orders": orders_readable}
+        return jsonify({"success": True, "orders": orders_readable}), 200
 
     except Exception as e:
         logging.error(f"Errore nella funzione get_history_orders: {e}")
-        return {"success": False, "message": str(e)}
+        return jsonify({"success": False, "message": str(e)}), 500
 
 def get_placed_orders():
     try:
@@ -164,8 +165,8 @@ def get_placed_orders():
 
         if orders is None or len(orders) == 0:
             message = f"Non esistono ordini pendenti: {mt5.last_error()}"
-            logging.error(message)
-            return {"success": True, "message": message, "orders": []}
+            logging.info(message)
+            return jsonify({"success": True, "message": message, "orders": []}), 200
 
         orders_readable = []
         for order in orders:
@@ -196,11 +197,11 @@ def get_placed_orders():
                 "external_id": order.external_id
             })
 
-        return {"success": True, "orders": orders_readable}
+        return jsonify({"success": True, "orders": orders_readable}), 200
 
     except Exception as e:
         logging.error(f"Errore nella funzione get_placed_orders: {e}")
-        return {"success": False, "message": str(e)}
+        return jsonify({"success": False, "message": str(e)}), 500
 
 def create_order(symbol, order_type, volume, price=None, sl=None, tp=None, magic=0):
 
@@ -218,17 +219,17 @@ def create_order(symbol, order_type, volume, price=None, sl=None, tp=None, magic
     if order_type not in order_type_mapping:
         message = f"Tipo di ordine '{order_type}' non valido."
         logging.error(message)
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 500
 
     symbol_info = mt5.symbol_info(symbol)
     if not symbol_info:
         message = f"Simbolo {symbol} non trovato."
         logging.error(message)
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 400
     if not symbol_info.visible and not mt5.symbol_select(symbol, True):
         message = f"Errore nell'attivare il simbolo {symbol}."
         logging.error(message)
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 400
 
     stops_level = symbol_info.trade_stops_level
     point = symbol_info.point
@@ -236,7 +237,7 @@ def create_order(symbol, order_type, volume, price=None, sl=None, tp=None, magic
     if stops_level is None:
         message = f"Impossibile ottenere il livello minimo di stop per il simbolo {symbol}."
         logging.error(message)
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 400
 
     if price is None and order_type in ['buy', 'sell']:
         if order_type == 'buy':
@@ -279,28 +280,28 @@ def create_order(symbol, order_type, volume, price=None, sl=None, tp=None, magic
         message = mt5.last_error()
         message = f"Errore nell'invio dell'ordine: {message}"
         logging.error(message)
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 500
 
     if result.retcode != mt5.TRADE_RETCODE_DONE:
         message = f"Errore nell'invio dell'ordine: {result.comment}"
         logging.error(message)
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 400
 
     logging.info(f"Ordine creato con successo: {result}")
-    return {"success": True, "order": result.order}
+    return jsonify({"success": True, "order": result.order}), 200
 
 def update_order(ticket, price=None, stop_loss=None, take_profit=None):
     orders = mt5.orders_get()
     if not orders:
         message = f"Nessun ordine pendente trovato: {mt5.last_error()}"
-        logging.error(message)
-        return {"success": False, "message": message}
+        logging.info(message)
+        return jsonify({"success": False, "message": message}), 404
 
     order = next((o for o in orders if o.ticket == ticket), None)
     if not order:
         message = f"Ordine con ticket {ticket} non trovato."
         logging.error(message)
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 404
 
     request = {
         "action": mt5.TRADE_ACTION_MODIFY,
@@ -315,15 +316,15 @@ def update_order(ticket, price=None, stop_loss=None, take_profit=None):
     if result is None:
         message = f"Errore di comunicazione con il server: {mt5.last_error()}"
         logging.error(message)
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 500
 
     if result.retcode != mt5.TRADE_RETCODE_DONE:
         message = f"Errore nell'aggiornamento dell'ordine. Retcode: {result.retcode}, Details: {result.comment}"
         logging.error(f"Errore nell'aggiornamento dell'ordine. Retcode: {result.retcode}, Details: {result.comment}")
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 500
 
     logging.info(f"Ordine con ticket {ticket} aggiornato con successo")
-    return {"success": True, "message": "Ordine aggiornato con successo"}
+    return jsonify({"success": True, "message": "Ordine aggiornato con successo"}), 200
 
 def delete_order(ticket):      
     orders = mt5.orders_get(ticket=ticket)
@@ -331,7 +332,7 @@ def delete_order(ticket):
     if not orders:
         message = f"Nessun ordine trovato o errore: {mt5.last_error()}"
         logging.error(message)
-        return {"success": False, "message": message}
+        return jsonify({"success": False, "message": message}), 500
 
     logging.info(f"Ordine {ticket} da eliminare")
     
@@ -344,12 +345,12 @@ def delete_order(ticket):
     if result is None:
         error_message = f"Errore di comunicazione con il server: {mt5.last_error()}"
         logging.error(error_message)
-        return {"success": False, "message": error_message}
+        return jsonify({"success": False, "message": error_message}), 500
 
     if result.retcode != mt5.TRADE_RETCODE_DONE:
         error_message = f"Errore nell'annullamento dell'ordine. Retcode: {result.retcode}, Commento: {result.comment}"
         logging.error(error_message)
-        return {"success": False, "message": error_message}
+        return jsonify({"success": False, "message": error_message}), 500
 
     logging.info(f"Ordine con ticket {ticket} cancellato con successo.")
-    return {"success": True, "message": "Ordine cancellato con successo"}
+    return jsonify({"success": True, "message": "Ordine cancellato con successo"}), 200

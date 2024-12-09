@@ -32,10 +32,13 @@ def create_order_api():
             stop_loss = data.get('stop_loss')
             order_result = create_order(symbol, order_type, volume, price, stop_loss, take_profit)
         
-        if order_result["success"]:
-            return jsonify({"status": "success", "order_id": order_result["order"]}), 200
+        response = order_result[0] if isinstance(order_result, tuple) else order_result
+        data = response.get_json()
+
+        if data["success"]:
+            return jsonify({"status": "success", "order_id": data["order"]}), 200
         else:
-            return jsonify({"status": "error", "message": order_result["message"]}), 400
+            return jsonify({"status": "error", "message": data["message"]}), 400
     except Exception as e:
         logging.exception("Errore nella creazione dell'ordine")
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -53,10 +56,13 @@ def update_order_api():
         stop_loss = data.get('stop_loss') or None
         
         update_result = update_order(order_ticket, price, stop_loss, take_profit)
-        if update_result["success"]:
-            return jsonify({"status": "success", "message": update_result["message"]}), 200
+        response = update_result[0] if isinstance(update_result, tuple) else update_result
+        data = response.get_json()
+
+        if data["success"]:
+            return jsonify({"status": "success", "message": data["message"]}), 200
         else:
-            return jsonify({"status": "error", "message": update_result["message"]}), 400
+            return jsonify({"status": "error", "message": data["message"]}), 400
     except Exception as e:
         logging.exception("Errore nell'aggiornamento dell'ordine")
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -71,10 +77,13 @@ def delete_order_api():
         order_ticket = data['ticket']
         
         delete_result = delete_order(order_ticket)
-        if delete_result["success"]:
-            return jsonify({"status": "success", "message": delete_result["message"]}), 200
+        response = delete_result[0] if isinstance(delete_result, tuple) else delete_result
+        data = response.get_json()
+
+        if data["success"]:
+            return jsonify({"status": "success", "message": data["message"]}), 200
         else:
-            return jsonify({"status": "error", "message": delete_result["message"]}), 400
+            return jsonify({"status": "error", "message": data["message"]}), 400
     except Exception as e:
         logging.exception("Errore nella cancellazione dell'ordine")
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -86,11 +95,13 @@ def get_orders_api():
             return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
          
         get_placed_order_result = get_orders()
+        response = get_placed_order_result[0] if isinstance(get_placed_order_result, tuple) else get_placed_order_result
+        data = response.get_json()
        
-        if get_placed_order_result["success"]:
-            return jsonify({"status": "success", "orders": get_placed_order_result["orders"]}), 200
+        if data["success"]:
+            return jsonify({"status": "success", "orders": data["orders"]}), 200
         else:
-            return jsonify({"status": "error", "message":  get_placed_order_result["message"]}), 400
+            return jsonify({"status": "error", "message":  data["message"]}), 400
     except Exception as e:
         logging.exception("Errore nella ricezione della lista degli ordini posizionati")
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -102,11 +113,13 @@ def get_placed_orders_api():
             return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
                 
         get_placed_order_result = get_placed_orders()
+        response = get_placed_order_result[0] if isinstance(get_placed_order_result, tuple) else get_placed_order_result
+        data = response.get_json()
        
-        if get_placed_order_result["success"]:
-            return jsonify({"status": "success", "orders": get_placed_order_result["orders"]}), 200
+        if data["success"]:
+            return jsonify({"status": "success", "orders": data["orders"]}), 200
         else:
-            return jsonify({"status": "error", "message":  get_placed_order_result["message"]}), 400
+            return jsonify({"status": "error", "message":  data["message"]}), 400
     except Exception as e:
         logging.exception("Errore nella ricezione della lista degli ordini pendenti")
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -122,11 +135,13 @@ def get_history_orders_api():
         to_date = data.get('to_date') or None
 
         get_history_order_result = get_history_orders(from_date, to_date)
+        response = get_history_order_result[0] if isinstance(get_history_order_result, tuple) else get_history_order_result
+        data = response.get_json()
        
-        if get_history_order_result["success"]:
-            return jsonify({"status": "success", "orders": get_history_order_result["orders"]}), 200
+        if data["success"]:
+            return jsonify({"status": "success", "orders": data["orders"]}), 200
         else:
-            return jsonify({"status": "error", "message":  get_history_order_result["message"]}), 400
+            return jsonify({"status": "error", "message":  data["message"]}), 400
     except Exception as e:
         logging.exception("Errore nella ricezione della cronologia degli ordini")
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -142,11 +157,13 @@ def get_history_deals_orders_api():
         to_date = data.get('to_date') or None
 
         get_history_order_result = get_history_deals_orders(from_date, to_date)
-       
-        if get_history_order_result["success"]:
-            return jsonify({"status": "success", "orders": get_history_order_result["orders"]}), 200
+        response = get_history_order_result[0] if isinstance(get_history_order_result, tuple) else get_history_order_result
+        data = response.get_json()
+
+        if data["success"]:
+            return jsonify({"status": "success", "orders": data["orders"]}), 200
         else:
-            return jsonify({"status": "error", "message":  get_history_order_result["message"]}), 400
+            return jsonify({"status": "error", "message":  data["message"]}), 400
     except Exception as e:
         logging.exception("Errore nella ricezione della cronologia degli ordini")
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -158,11 +175,13 @@ def get_account_info_api():
             return jsonify({"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}), 500
 
         getInfo_result = get_account_info()
-       
-        if getInfo_result["success"]:
-            return jsonify({"status": "success", "info": getInfo_result["info"]}), 200
+        response = getInfo_result[0] if isinstance(getInfo_result, tuple) else getInfo_result
+        data = response.get_json()
+
+        if data["success"]:
+            return jsonify({"status": "success", "info": data["info"]}), 200
         else:
-            return jsonify({"status": "error", "message":  getInfo_result["message"]}), 400
+            return jsonify({"status": "error", "message":  data["message"]}), 400
     except Exception as e:
         logging.exception("Errore nella ricezione delle informazioni dell' account")
         return jsonify({"status": "error", "message": str(e)}), 400
