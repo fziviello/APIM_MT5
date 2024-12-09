@@ -37,11 +37,13 @@ update_model = api.model('UpdateOrder', {
 })
 
 history_model = api.model('HistoryRequest', {
+    'status': fields.String(required=True, description='Data di inizio (formato: YYYY-MM-DD HH:MM:SS)'),
     'from_date': fields.String(required=True, description='Data di inizio (formato: YYYY-MM-DD HH:MM:SS)'),
     'to_date': fields.String(description='Data di fine (formato: YYYY-MM-DD HH:MM:SS)'),
 })
 
-class CreateOrder(Resource):
+@api.route('/orders')
+class Orders(Resource):
     @api.expect(order_model)
     def post(self):
         try:
@@ -71,8 +73,7 @@ class CreateOrder(Resource):
         except Exception as e:
             logging.exception("Errore nella creazione dell'ordine")
             return {"status": "error", "message": str(e)}
-
-class UpdateOrder(Resource):
+    
     @api.expect(update_model)
     def put(self):
         try:
@@ -96,8 +97,7 @@ class UpdateOrder(Resource):
         except Exception as e:
             logging.exception("Errore nell'aggiornamento dell'ordine")
             return {"status": "error", "message": str(e)}
-
-class DeleteOrder(Resource):
+    
     @api.expect(api.model('DeleteRequest', {
         'ticket': fields.Integer(required=True, description='ID dell\'ordine da cancellare'),
     }))
@@ -121,8 +121,23 @@ class DeleteOrder(Resource):
             logging.exception("Errore nella cancellazione dell'ordine")
             return {"status": "error", "message": str(e)}
 
-class StatusOrders(Resource):
-    @api.doc(params={'status': 'Stato dell\'ordine (active o placed)'})
+    @api.doc(params={
+        'status': {
+            'description': 'Stato dell\'ordine. Valori validi: active, placed, history, historyDeals',
+            'type': 'string',
+            'required': True
+        },
+        'from_date': {
+            'description': 'Data di inizio per gli stati history e historyDeals (formato DD-MM-YYYY)',
+            'type': 'string',
+            'required': False
+        },
+        'to_date': {
+            'description': 'Data di fine per gli stati history e historyDeals (formato DD-MM-YYYY)',
+            'type': 'string',
+            'required': False
+        }
+    })
     @api.response(400, 'Status non valido', model=error_model)
     def get(self):
         try:
@@ -135,6 +150,14 @@ class StatusOrders(Resource):
                 get_status_order_result = get_orders()
             elif status == 'placed':     
                 get_status_order_result = get_placed_orders()
+            elif status == 'history':   
+                from_date = request.args.get('from_date')
+                to_date = request.args.get('to_date')  
+                get_status_order_result = get_history_orders(from_date, to_date)
+            elif status == 'historyDeals':     
+                from_date = request.args.get('from_date')
+                to_date = request.args.get('to_date')  
+                get_status_order_result = get_history_deals_orders(from_date, to_date)
             else:
                 return {"status": "error", "message": "Status non valido"}
             
@@ -149,54 +172,7 @@ class StatusOrders(Resource):
             logging.exception("Errore nella ricezione della lista degli ordini {status}")
             return {"status": "error", "message": str(e)}
 
-@api.route('/orders/history')
-class HistoryOrders(Resource):
-    @api.expect(history_model)
-    def post(self):
-        try:
-            if not mt5.initialize():
-                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}
-            
-            data = request.get_json()
-            from_date = data.get('from_date')
-            to_date = data.get('to_date') or None
-
-            get_history_order_result = get_history_orders(from_date, to_date)
-            response = get_history_order_result[0] if isinstance(get_history_order_result, tuple) else get_history_order_result
-            data = response.get_json()
-        
-            if data["success"]:
-                return {"status": "success", "orders": data["orders"]}
-            else:
-                return {"status": "error", "message":  data["message"]}
-        except Exception as e:
-            logging.exception("Errore nella ricezione della cronologia degli ordini")
-            return {"status": "error", "message": str(e)}
-
-@api.route('/orders/historyDeals')
-class HistoryDealsOrders(Resource):
-    @api.expect(history_model)
-    def post(self):
-        try:
-            if not mt5.initialize():
-                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}
-            
-            data = request.get_json()
-            from_date = data.get('from_date')
-            to_date = data.get('to_date') or None
-
-            get_history_order_result = get_history_deals_orders(from_date, to_date)
-            response = get_history_order_result[0] if isinstance(get_history_order_result, tuple) else get_history_order_result
-            data = response.get_json()
-
-            if data["success"]:
-                return {"status": "success", "orders": data["orders"]}
-            else:
-                return {"status": "error", "message":  data["message"]}
-        except Exception as e:
-            logging.exception("Errore nella ricezione della cronologia degli ordini")
-            return {"status": "error", "message": str(e)}
-
+@api.route('/account')
 class AccountInfo(Resource):
     def get(self):
         try:
@@ -214,13 +190,6 @@ class AccountInfo(Resource):
         except Exception as e:
             logging.exception("Errore nella ricezione delle informazioni dell' account")
             return {"status": "error", "message": str(e)}
-
-api.add_resource(CreateOrder, '/orders')
-api.add_resource(UpdateOrder, '/orders')
-api.add_resource(DeleteOrder, '/orders')
-api.add_resource(StatusOrders, '/orders')
-
-api.add_resource(AccountInfo, '/account')
 
 if __name__ == '__main__':
     hostname = socket.gethostname()
