@@ -4,7 +4,7 @@ import socket
 import logging
 from flask_restx import Api, Resource, fields, reqparse
 from protocol import get_account_info, get_orders, get_history_deals_orders, get_history_orders, get_placed_orders, create_order, update_order, delete_order
-
+from datetime import datetime
 logging.basicConfig(
     filename="trading_api.log",
     level=logging.INFO,
@@ -128,12 +128,12 @@ class Orders(Resource):
             'required': True
         },
         'from_date': {
-            'description': 'Data di inizio per gli stati history e historyDeals (formato DD-MM-YYYY)',
+            'description': 'Data di inizio per gli stati history e historyDeals (formato DD/MM/YYYY)',
             'type': 'string',
             'required': False
         },
         'to_date': {
-            'description': 'Data di fine per gli stati history e historyDeals (formato DD-MM-YYYY)',
+            'description': 'Data di fine per gli stati history e historyDeals (formato DD/MM/YYYY)',
             'type': 'string',
             'required': False
         }
@@ -150,7 +150,7 @@ class Orders(Resource):
                 get_status_order_result = get_orders()
             elif status == 'placed':     
                 get_status_order_result = get_placed_orders()
-            elif status == 'history':   
+            elif status == 'history':
                 from_date = request.args.get('from_date')
                 to_date = request.args.get('to_date')  
                 get_status_order_result = get_history_orders(from_date, to_date)

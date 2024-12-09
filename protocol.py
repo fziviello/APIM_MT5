@@ -70,13 +70,11 @@ def get_orders():
 
     return jsonify({"success": True, "orders": orders_readable}), 200
 
-def get_history_deals_orders(from_date, to_date=None):
+def get_history_deals_orders(from_date, to_date):
     try:
-        from_date = datetime.strptime(from_date, "%d-%m-%Y")
-        if to_date is None:
-            to_date = datetime.now()
-
-        deals_orders = mt5.history_deals_get(from_date, to_date)
+        from_date_dt = datetime.strptime(from_date, '%d/%m/%Y')
+        to_date_dt = datetime.strptime(to_date, '%d/%m/%Y')
+        deals_orders = mt5.history_deals_get(from_date_dt, to_date_dt)
 
         if deals_orders is None or len(deals_orders) == 0:
             message = "Nessuna cronologia ordini trovata" if deals_orders is None else f"Errore: {mt5.last_error()}"
@@ -112,13 +110,12 @@ def get_history_deals_orders(from_date, to_date=None):
         logging.error(f"Errore nella funzione get_history_deals_orders: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
-def get_history_orders(from_date, to_date=None):
+def get_history_orders(from_date, to_date):
     try:
-        from_date = datetime.strptime(from_date, "%d-%m-%Y")
-        if to_date is None:
-            to_date = datetime.now()
 
-        orders = mt5.history_orders_get(from_date, to_date)
+        from_date_dt = datetime.strptime(from_date, '%d/%m/%Y')
+        to_date_dt = datetime.strptime(to_date, '%d/%m/%Y')
+        orders = mt5.history_orders_get(from_date_dt, to_date_dt)
 
         if orders is None or len(orders) == 0:
             message = "Nessuna cronologia ordini trovata" if orders is None else f"Errore: {mt5.last_error()}"
