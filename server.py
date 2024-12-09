@@ -68,7 +68,7 @@ class CreateOrder(Resource):
             logging.exception("Errore nella creazione dell'ordine")
             return {"status": "error", "message": str(e)}
 
-@api.route('/order/update')
+@api.route('/order')
 class UpdateOrder(Resource):
     @api.expect(update_model)
     def put(self):
@@ -94,7 +94,7 @@ class UpdateOrder(Resource):
             logging.exception("Errore nell'aggiornamento dell'ordine")
             return {"status": "error", "message": str(e)}
 
-@api.route('/order/delete')
+@api.route('/order')
 class DeleteOrder(Resource):
     @api.expect(api.model('DeleteRequest', {
         'ticket': fields.Integer(required=True, description='ID dell\'ordine da cancellare'),
@@ -205,7 +205,7 @@ class HistoryDealsOrders(Resource):
             logging.exception("Errore nella ricezione della cronologia degli ordini")
             return {"status": "error", "message": str(e)}
 
-@api.route('/account/info')
+@api.route('/account')
 class AccountInfo(Resource):
     def get(self):
         try:
