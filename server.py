@@ -15,6 +15,11 @@ logging.basicConfig(
 app = Flask(__name__)
 api = Api(app, version="1.0", title="APIM MT5", description="API per la gestione degli ordini su MetaTrader5")
 
+error_model = api.model('Error', {
+    'status': fields.String(description='Stato della risposta'),
+    'message': fields.String(description='Messaggio di errore')
+})
+
 order_model = api.model('Order', {
     'symbol': fields.String(required=True, description='Simbolo dell\'asset (es. EURUSD)'),
     'type': fields.String(required=True, description='Tipo di ordine (buy, sell, limit, stop)'),
@@ -36,7 +41,6 @@ history_model = api.model('HistoryRequest', {
     'to_date': fields.String(description='Data di fine (formato: YYYY-MM-DD HH:MM:SS)'),
 })
 
-@api.route('/order')
 class CreateOrder(Resource):
     @api.expect(order_model)
     def post(self):
@@ -68,7 +72,6 @@ class CreateOrder(Resource):
             logging.exception("Errore nella creazione dell'ordine")
             return {"status": "error", "message": str(e)}
 
-@api.route('/order')
 class UpdateOrder(Resource):
     @api.expect(update_model)
     def put(self):
@@ -94,7 +97,6 @@ class UpdateOrder(Resource):
             logging.exception("Errore nell'aggiornamento dell'ordine")
             return {"status": "error", "message": str(e)}
 
-@api.route('/order')
 class DeleteOrder(Resource):
     @api.expect(api.model('DeleteRequest', {
         'ticket': fields.Integer(required=True, description='ID dell\'ordine da cancellare'),
@@ -119,34 +121,24 @@ class DeleteOrder(Resource):
             logging.exception("Errore nella cancellazione dell'ordine")
             return {"status": "error", "message": str(e)}
 
-@api.route('/order/active')
-class ActiveOrders(Resource):
+class StatusOrders(Resource):
+    @api.doc(params={'status': 'Stato dell\'ordine (active o placed)'})
+    @api.response(400, 'Status non valido', model=error_model)
     def get(self):
         try:
             if not mt5.initialize():
                 return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}
             
-            get_active_order_result = get_orders()
-            response = get_active_order_result[0] if isinstance(get_active_order_result, tuple) else get_active_order_result
-            data = response.get_json()
-        
-            if data["success"]:
-                return {"status": "success", "orders": data["orders"]}
-            else:
-                return {"status": "error", "message":  data["message"]}
-        except Exception as e:
-            logging.exception("Errore nella ricezione della lista degli ordini posizionati")
-            return {"status": "error", "message": str(e)}
+            status = request.args.get('status')
 
-@api.route('/order/placed')
-class PlacedOrders(Resource):
-    def get(self):
-        try:
-            if not mt5.initialize():
-                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}
+            if status == 'active':
+                get_status_order_result = get_orders()
+            elif status == 'placed':     
+                get_status_order_result = get_placed_orders()
+            else:
+                return {"status": "error", "message": "Status non valido"}
             
-            get_placed_order_result = get_placed_orders()
-            response = get_placed_order_result[0] if isinstance(get_placed_order_result, tuple) else get_placed_order_result
+            response = get_status_order_result[0] if isinstance(get_status_order_result, tuple) else get_status_order_result
             data = response.get_json()
         
             if data["success"]:
@@ -154,7 +146,7 @@ class PlacedOrders(Resource):
             else:
                 return {"status": "error", "message":  data["message"]}
         except Exception as e:
-            logging.exception("Errore nella ricezione della lista degli ordini pendenti")
+            logging.exception("Errore nella ricezione della lista degli ordini {status}")
             return {"status": "error", "message": str(e)}
 
 @api.route('/order/history')
@@ -205,7 +197,6 @@ class HistoryDealsOrders(Resource):
             logging.exception("Errore nella ricezione della cronologia degli ordini")
             return {"status": "error", "message": str(e)}
 
-@api.route('/account')
 class AccountInfo(Resource):
     def get(self):
         try:
@@ -223,6 +214,13 @@ class AccountInfo(Resource):
         except Exception as e:
             logging.exception("Errore nella ricezione delle informazioni dell' account")
             return {"status": "error", "message": str(e)}
+
+api.add_resource(CreateOrder, '/order')
+api.add_resource(UpdateOrder, '/order')
+api.add_resource(DeleteOrder, '/order')
+api.add_resource(StatusOrders, '/orders')
+
+api.add_resource(AccountInfo, '/account')
 
 if __name__ == '__main__':
     hostname = socket.gethostname()
