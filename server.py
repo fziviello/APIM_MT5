@@ -167,7 +167,6 @@ def get_account_info_api():
         logging.exception("Errore nella ricezione delle informazioni dell' account")
         return jsonify({"status": "error", "message": str(e)}), 400
 
-
 if __name__ == '__main__':
     hostname = socket.gethostname()
     ip_address = socket.gethostbyname(hostname)
