@@ -4,7 +4,7 @@ import socket
 import logging
 from flask_restx import Api, Resource, fields, reqparse
 from protocol import get_account_info, get_orders, get_history_deals_orders, get_history_orders, get_placed_orders, create_order, update_order, delete_order
-from datetime import datetime
+
 logging.basicConfig(
     filename="trading_api.log",
     level=logging.INFO,
@@ -18,6 +18,12 @@ api = Api(app, version="1.0", title="APIM MT5", description="API per la gestione
 error_model = api.model('Error', {
     'status': fields.String(description='Stato della risposta'),
     'message': fields.String(description='Messaggio di errore')
+})
+
+login_model = api.model('Login', {
+    'username': fields.Integer(description='Numero Id conto'),
+    'password': fields.String(description='Password del conto'),
+    'serverName': fields.String(description='Inserire il nome del server (Ava-Demo 1-MT5)'),
 })
 
 order_model = api.model('Order', {
@@ -48,7 +54,7 @@ class Orders(Resource):
     def post(self):
         try:
             if not mt5.initialize():
-                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}
+                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"},501
             
             data = request.get_json()
             symbol = data['symbol']
@@ -67,9 +73,9 @@ class Orders(Resource):
             data = response.get_json()
 
             if data["success"]:
-                return {"status": "success", "order_id": data["order"]}
+                return {"status": "success", "order_id": data["order"]},200
             else:
-                return {"status": "error", "message": data["message"]}
+                return {"status": "error", "message": data["message"]},500
         except Exception as e:
             logging.exception("Errore nella creazione dell'ordine")
             return {"status": "error", "message": str(e)}
@@ -78,7 +84,7 @@ class Orders(Resource):
     def put(self):
         try:
             if not mt5.initialize():
-                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}
+                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"},501
             
             data = request.get_json()
             order_ticket = data['ticket']
@@ -91,12 +97,12 @@ class Orders(Resource):
             data = response.get_json()
 
             if data["success"]:
-                return {"status": "success", "message": data["message"]}
+                return {"status": "success", "message": data["message"]},200
             else:
-                return {"status": "error", "message": data["message"]}
+                return {"status": "error", "message": data["message"]},500
         except Exception as e:
             logging.exception("Errore nell'aggiornamento dell'ordine")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": str(e)},500
     
     @api.expect(api.model('DeleteRequest', {
         'ticket': fields.Integer(required=True, description='ID dell\'ordine da cancellare'),
@@ -104,7 +110,7 @@ class Orders(Resource):
     def delete(self):
         try:
             if not mt5.initialize():
-                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}
+                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"},501
             
             data = request.get_json()
             order_ticket = data['ticket']
@@ -114,12 +120,12 @@ class Orders(Resource):
             data = response.get_json()
 
             if data["success"]:
-                return {"status": "success", "message": data["message"]}
+                return {"status": "success", "message": data["message"]},200
             else:
-                return {"status": "error", "message": data["message"]}
+                return {"status": "error", "message": data["message"]},500
         except Exception as e:
             logging.exception("Errore nella cancellazione dell'ordine")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": str(e)},500
 
     @api.doc(params={
         'status': {
@@ -142,7 +148,7 @@ class Orders(Resource):
     def get(self):
         try:
             if not mt5.initialize():
-                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}
+                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"},501
             
             status = request.args.get('status')
 
@@ -165,31 +171,54 @@ class Orders(Resource):
             data = response.get_json()
         
             if data["success"]:
-                return {"status": "success", "orders": data["orders"]}
+                return {"status": "success", "orders": data["orders"]},200
             else:
-                return {"status": "error", "message":  data["message"]}
+                return {"status": "error", "message":  data["message"]},500
         except Exception as e:
             logging.exception("Errore nella ricezione della lista degli ordini {status}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": str(e)},500
 
 @api.route('/account')
 class AccountInfo(Resource):
     def get(self):
         try:
             if not mt5.initialize():
-                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"}
+                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"},501
 
             getInfo_result = get_account_info()
             response = getInfo_result[0] if isinstance(getInfo_result, tuple) else getInfo_result
             data = response.get_json()
         
             if data["success"]:
-                return {"status": "success", "info": data["info"]}
+                return {"status": "success", "info": data["info"]},200
             else:
-                return {"status": "error", "message":  data["message"]}
+                return {"status": "error", "message":  data["message"]},500
         except Exception as e:
             logging.exception("Errore nella ricezione delle informazioni dell' account")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error", "message": str(e)},500
+        
+    @api.expect(login_model)
+    def post(self):
+        try:
+            data = request.get_json()
+            username = data['username']
+            password = data['password']
+            serverName = data['serverName']
+
+            if not mt5.initialize(login=int(username), server=serverName, password=password):
+                return {"success": False, "message": f"Errore Connessione Account MT5: {mt5.last_error()}"}
+            
+            getInfo_result = get_account_info()
+            response = getInfo_result[0] if isinstance(getInfo_result, tuple) else getInfo_result
+            data = response.get_json()
+        
+            if data["success"]:
+                return {"status": "success", "info": data["info"]},200
+            else:
+                return {"status": "error", "message":  data["message"]},500
+        except Exception as e:
+            logging.exception("Errore nella ricezione delle informazioni dell' account")
+            return {"status": "error", "message": str(e)},500
 
 if __name__ == '__main__':
     hostname = socket.gethostname()
