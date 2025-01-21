@@ -221,8 +221,10 @@ class AccountInfo(Resource):
             return {"status": "error", "message": str(e)},500
     def delete(self):
         try:
-            if mt5.shutdown():
-                return {"success": False, "message": f"Errore Disconnessione Account MT5: {mt5.last_error()}"},501
+            if not mt5.initialize():
+                return {"success": False, "message": f"Errore inizializzazione MT5: {mt5.last_error()}"},501
+            if not mt5.shutdown():
+                return {"success": False, "message": f"Errore Disconnessione Account MT5: {mt5.last_error()}"},500
             
             return {"status": "success", "info": "Account Disconnesso con Successo"},200
         
