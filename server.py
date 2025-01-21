@@ -206,7 +206,7 @@ class AccountInfo(Resource):
             serverName = data['serverName']
 
             if not mt5.initialize(login=int(username), server=serverName, password=password):
-                return {"success": False, "message": f"Errore Connessione Account MT5: {mt5.last_error()}"}
+                return {"success": False, "message": f"Errore Connessione Account MT5: {mt5.last_error()}"},501
             
             getInfo_result = get_account_info()
             response = getInfo_result[0] if isinstance(getInfo_result, tuple) else getInfo_result
@@ -218,6 +218,16 @@ class AccountInfo(Resource):
                 return {"status": "error", "message":  data["message"]},500
         except Exception as e:
             logging.exception("Errore nella ricezione delle informazioni dell' account")
+            return {"status": "error", "message": str(e)},500
+    def delete(self):
+        try:
+            if mt5.shutdown():
+                return {"success": False, "message": f"Errore Disconnessione Account MT5: {mt5.last_error()}"},501
+            
+            return {"status": "success", "info": "Account Disconnesso con Successo"},200
+        
+        except Exception as e:
+            logging.exception("Errore nella disconnessione dell' account")
             return {"status": "error", "message": str(e)},500
 
 if __name__ == '__main__':
